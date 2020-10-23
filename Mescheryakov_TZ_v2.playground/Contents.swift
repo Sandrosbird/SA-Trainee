@@ -1,188 +1,76 @@
 import UIKit
 
-extension String {
-    func indexes(of string: String, options: CompareOptions = .literal) -> [Index] {
-        var result: [Index] = []
-        var start = startIndex
-        while let range = range(of: string, options: options, range: start..<endIndex) {
-            result.append(range.lowerBound)
-            start = range.lowerBound < range.upperBound ? range.upperBound : index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
-        }
-        return result
-    }
-}
-//         0              15 17                               50 52                                                                   121
-var str = "First expression\nAnother expression with more words\nAnd third final expression with some punctuation marks at the end!?.."
-let strWithMoreBreaks = "First expression\nAnother expression with more words\nAnd third final expression with some punctuation marks at the end!?..\nAnother expression with more words\nAnd third final expression with some punctuation marks at the end!?.."
-let lineBreak: Character = "\n"
-let strWithoutBreaks = "Something wrong here" // 20
-str.count //121
-strWithoutBreaks.count //20
-strWithMoreBreaks.count //226
 
-func findRangeOfSubstring(string: String, at position: Int) -> NSRange? {
-    var finalRange: NSRange?
-    var location: Int
-    var length: Int
-    
-    //проверка, что позиция не выходит за количество символов в строке
-    guard position <= string.count else {
-        print("Error: Position out of index range")
-        return nil
-    }
-    
-    //получаем значение String.Index из аргумента (position: Int)
-    let positionIndex: String.Index = string.index(string.startIndex, offsetBy: position)
-    
-    //    let firstSeparatorIndx: String.Index? = string.firstIndex(of: lineBreak)
-    //    let lastSeparatorIndex: String.Index? = string.lastIndex(of: lineBreak)
-    
-    let lineBreakIndexes: [String.Index] = string.indexes(of: String(lineBreak))
-    
-    if lineBreakIndexes.isEmpty {
-        location = string.startIndex.utf16Offset(in: string)
-        length = string.endIndex.utf16Offset(in: string)
-        finalRange = NSRange(location: location, length: length)
-        return finalRange
-    } else {
-        var previousLineBreakIndex: String.Index? = nil
-        var nextLineBreakIndex: String.Index? = nil
-        var i = 0
+
+extension String {
         
-        for index in lineBreakIndexes {
-            
-            if index != lineBreakIndexes.last! && positionIndex > index {
-                i+=1
-                previousLineBreakIndex = index
-                continue
-            } else if positionIndex <= index && previousLineBreakIndex == nil { //выполняется
-                location = string.startIndex.utf16Offset(in: string)+1
-                length = lineBreakIndexes.first!.utf16Offset(in: string) - location
-                
-                finalRange = NSRange(location: location, length: length)
-                return finalRange
-            } else if positionIndex <= index && previousLineBreakIndex != nil { //выполняется
-                
-                nextLineBreakIndex = index
-                
-                location = previousLineBreakIndex!.utf16Offset(in: string)+1
-                length = nextLineBreakIndex!.utf16Offset(in: string)-1
-                
-                finalRange = NSRange(location: location, length: length)
-                return finalRange
-                
-            } else if positionIndex > index && index == lineBreakIndexes.last! { // выполняется
-                previousLineBreakIndex = lineBreakIndexes[i]
-                nextLineBreakIndex = string.endIndex
-                
-                location = previousLineBreakIndex!.utf16Offset(in: string)+1
-                length = nextLineBreakIndex!.utf16Offset(in: string)-1
-                
-                finalRange = NSRange(location: location, length: length)
-                print("конечное условие")
-                return finalRange
+    func findRange(at position: Int) -> ClosedRange<Int>? {
+        
+        guard position >= 0, position < endIndex.utf16Offset(in: self) else { print("Index out of strings range"); return nil }
+        var startOfSubstring = 0
+        var endOfSubstring = 0
+        var mutablePosition = position
+        var anotherMutablePosition = position
+        var firstFlag = true
+        var secondFlag = true
+        
+        while (index(startIndex, offsetBy: mutablePosition) >= startIndex || index(startIndex, offsetBy: anotherMutablePosition) < endIndex) && (firstFlag || secondFlag) {
+            print("1")
+            //проверка на наличие хотя бы одного \n в строке, если нет, то выведет 0..<endIndex
+            if contains("\n") {
+                print("2")
+                //Поиск вниз от position: если поиск дошел до начала строки или до \n, то starOFSubstring = текущая позиция и флаг для меньшей границы переключается, если поиск не завершился и флаг не равен false, то переходит в следующему элементу
+                if (index(startIndex, offsetBy: mutablePosition) == startIndex || self[index(startIndex, offsetBy: mutablePosition)] == "\n" || self[index(startIndex, offsetBy: mutablePosition)] == first) && firstFlag {
+                    print("3")
+                    startOfSubstring = mutablePosition
+                    firstFlag = false
+                } else if index(startIndex, offsetBy: mutablePosition) >= startIndex && firstFlag{
+                    print("4")
+                    mutablePosition -= 1
+                }
+                //Поиск вверх от position.
+                if (index(startIndex, offsetBy: anotherMutablePosition) == index(before: endIndex) || self[index(startIndex, offsetBy: anotherMutablePosition)] == "\n" || self[index(startIndex, offsetBy: mutablePosition)] == last) && secondFlag {
+                    print("5")
+                    endOfSubstring = anotherMutablePosition
+                    secondFlag = false
+                } else if index(startIndex, offsetBy: anotherMutablePosition) < endIndex && secondFlag {
+                    print("6")
+                    anotherMutablePosition += 1
+                }
+                //если position указывает на символ переноса строки, то подстрокой считается то, что находится слева от position
+                if mutablePosition == anotherMutablePosition {
+                    print("7")
+                    mutablePosition = position - 1
+                    firstFlag = true
+                    secondFlag = true
+                }
+                //Если в строке нет \n
+            } else {
+                print("7")
+                startOfSubstring = startIndex.utf16Offset(in: self)
+                endOfSubstring = index(before: endIndex).utf16Offset(in: self)
+                firstFlag = false
+                secondFlag = false
             }
         }
+        //проверка для корректного вывода диапазона, в который не входят разделители строк
+        if (mutablePosition <= position && mutablePosition != startIndex.utf16Offset(in: self) && self[index(startIndex, offsetBy: mutablePosition)] == "\n") && (anotherMutablePosition >= position && anotherMutablePosition != index(before: endIndex).utf16Offset(in: self) && self[index(startIndex, offsetBy: anotherMutablePosition)] == "\n") {
+            print("Between two line breakers")
+            return startOfSubstring+1...endOfSubstring-1
+        } else if self[index(startIndex, offsetBy: anotherMutablePosition)] != last && self[index(startIndex, offsetBy: anotherMutablePosition)] == "\n" {
+            print("LIne breaker after position")
+            return startOfSubstring...endOfSubstring-1
+        } else if self[index(startIndex, offsetBy: mutablePosition)] != first && self[index(startIndex, offsetBy: mutablePosition)] == "\n" {
+            print("LIne breaker before position")
+            return startOfSubstring+1...endOfSubstring
+        } else {
+            return startOfSubstring...endOfSubstring
+        }
     }
-    return finalRange
 }
 
-
-findRangeOfSubstring(string: str, at: 55) //работает
-findRangeOfSubstring(string: strWithMoreBreaks, at: 130)
-findRangeOfSubstring(string: strWithoutBreaks, at: 2)
-
-//
-//str.makeIterator()
-//
-//str.enumerated()
-//
-//let searchedIndex = str.index(str.startIndex, offsetBy: 6)
-//print(searchedIndex)
-//
-//
-////findRangeOfSubstring(string: str, at: 10)
-//let some = str.indices
-//
-//let firstChar = str.first!
-//let range = str.distance(from: str.firstIndex(of: firstChar)!, to: str.firstIndex(of: lineBreak)!) // String.IndexDistance
-//
-////findRangeOfSubstring(string: str, at: 10)
-//
-//print(str.split(separator: lineBreak))
-//print(str.components(separatedBy: .newlines))
-//
-//NSRangeFromString(str)
+let s = "12\n345678\n90"
+let i = 8
 
 
-//func firstTry(string: String, at position: Int) -> NSRange? {
-//    var finalRange: NSRange?
-//    var location: Int
-//    var length: Int
-//
-//    //получаем значение String.Index из аргумента position: Int
-//    let positionIndex: String.Index = string.index(string.startIndex, offsetBy: position)
-//
-//    //проверка, что позиция не выходит за количество символов в строке
-//    guard position <= string.count else {
-//        print("Error: Position out of index range")
-//        return nil
-//    }
-//
-//    let firstSeparatorIndex: String.Index? = string.firstIndex(of: lineBreak)
-//    let lastSeparatorIndex: String.Index? = string.lastIndex(of: lineBreak)
-//
-//        if positionIndex <= firstSeparatorIndex  {
-//            location = string.startIndex.utf16Offset(in: string)
-//            length = firstSeparatorIndex.utf16Offset(in: string) // получается не длина, а индекс последнего элемента подстроки
-//
-//            finalRange = NSRange(location: location, length: length)
-//            return finalRange
-//        } else if positionIndex > firstSeparatorIndex && positionIndex <= lastSeparatorIndex {
-//            location = firstSeparatorIndex.utf16Offset(in: string)+1
-//            length = lastSeparatorIndex.utf16Offset(in: string)-1 // получается не длина, а индекс последнего элемента подстроки
-//
-//            finalRange = NSRange(location: location, length: length)
-//            return finalRange
-//        } else if positionIndex > lastSeparatorIndex && position <= string.count {
-//            location = lastSeparatorIndex.utf16Offset(in: string)+1
-//            length = string.endIndex.utf16Offset(in: string)-1 // получается не длина, а индекс последнего элемента подстроки
-//
-//            finalRange = NSRange(location: location, length: length)
-//            return finalRange
-//        }
-//    return finalRange
-//}
-
-//                if previousLineBreakIndex == nil { // если position находится до первого переноса строки
-//                    nextLineBreakIndex = lineBreakIndexes[i]
-//                    location = string.startIndex.utf16Offset(in: string)
-//                    length = (nextLineBreakIndex?.utf16Offset(in: string) ?? 0) - location // получается длина, а не индекс последнего элемента подстроки
-//                    finalRange = NSRange(location: location, length: length)
-//                    return finalRange
-//                } else if previousLineBreakIndex != nil && index != lineBreakIndexes.last {
-////                    i+=1
-//
-//                    nextLineBreakIndex = lineBreakIndexes[i]
-//                    location = previousLineBreakIndex!.utf16Offset(in: string)
-//                    length = nextLineBreakIndex!.utf16Offset(in: string) - location
-//                    //                    string.endIndex.utf16Offset(in: string) - location
-//
-//                    finalRange = NSRange(location: location, length: length)
-//                    return finalRange
-//                } else if previousLineBreakIndex != nil && lineBreakIndexes.last == index {
-////                    i+=1
-//                    nextLineBreakIndex = lineBreakIndexes[i]
-//                    location = index.utf16Offset(in: string)
-//                    length = string.endIndex.utf16Offset(in: string) - location
-//
-//                    finalRange = NSRange(location: location, length: length)
-//                    return finalRange
-//                }
-//            } else if positionIndex <= index && lineBreakIndexes.last != index {
-//                nextLineBreakIndex = index
-//                print("3")
-//                location = previousLineBreakIndex!.utf16Offset(in: string)+1
-//                length = nextLineBreakIndex!.utf16Offset(in: string) - location
-//
-//                finalRange = NSRange(location: location, length: length)
+s.findRange(at: i)
